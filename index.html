@@ -1,0 +1,1116 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width,initial-scale=1,maximum-scale=1,user-scalable=no" />
+<title>Pluckers Bingo</title>
+<style>
+  :root {
+    --red: #c8102e;
+    --red-dark: #9a0a22;
+    --red-deep: #6b0717;
+    --yellow: #f4c430;
+    --yellow-bright: #ffd84d;
+    --blue: #1d3a8a;
+    --blue-dark: #142764;
+    --blue-bright: #2a52be;
+    --cream: #f7f1e3;
+    --black: #0c0c0c;
+    --charcoal: #1a1a1a;
+    --panel: #222;
+    --ink: #fff8e7;
+    --ink-dim: #d9c9a0;
+    --shadow: 0 24px 70px rgba(0,0,0,.55);
+  }
+  * { box-sizing: border-box; -webkit-tap-highlight-color: transparent; }
+  html, body {
+    margin: 0;
+    min-height: 100%;
+    background:
+      radial-gradient(1400px 900px at 50% -15%, var(--blue-dark) 0%, #0a1234 60%, #060a1f 100%);
+    background-attachment: fixed;
+    color: var(--ink);
+    font-family: "Impact", "Oswald", "Bebas Neue", ui-sans-serif, system-ui, "Segoe UI", Roboto, sans-serif;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+    text-rendering: optimizeLegibility;
+  }
+  /* The board (TV/caller) fills the screen and never scrolls; phones may scroll. */
+  body.board { height: 100%; overflow: hidden; user-select: none; -webkit-user-select: none; }
+  body::before {
+    content: "";
+    position: fixed; inset: 0;
+    background-image:
+      repeating-linear-gradient(45deg, rgba(244,196,48,.035) 0 14px, transparent 14px 28px);
+    pointer-events: none;
+    z-index: 0;
+  }
+  #app {
+    position: relative;
+    min-height: 100vh;
+    display: flex;
+    flex-direction: column;
+    z-index: 1;
+  }
+
+  /* ---------------- Header bar (shared) ---------------- */
+  header {
+    position: relative;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: 16px 32px;
+    background: var(--blue-dark);
+    box-shadow: 0 8px 30px rgba(0,0,0,.5);
+  }
+  header::after {
+    content: "";
+    position: absolute;
+    bottom: 0; left: 0; right: 0;
+    height: 9px;
+    border-top: 2px solid var(--black);
+    background: linear-gradient(180deg,
+      var(--blue) 0, var(--blue) 33.33%,
+      var(--yellow) 33.33%, var(--yellow) 66.66%,
+      var(--red) 66.66%, var(--red) 100%);
+  }
+  header .brand, header .meta { position: relative; z-index: 2; }
+  .brand { display: flex; align-items: center; gap: 14px; font-weight: 900; letter-spacing: 2px; }
+  .brand .brand-logo-img {
+    height: 60px; width: auto; max-width: 220px; object-fit: contain;
+    filter: drop-shadow(0 4px 8px rgba(0,0,0,.5));
+  }
+  .brand .name { font-size: 30px; color: var(--yellow); text-shadow: 3px 3px 0 var(--black); line-height: 1; }
+  .brand .name small {
+    display: block; font-size: 12px; color: var(--cream);
+    letter-spacing: 6px; margin-top: 4px; text-shadow: 1px 1px 0 rgba(0,0,0,.2);
+  }
+  .daub-badge {
+    position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%, -50%) rotate(-2deg);
+    background: var(--red); color: var(--yellow);
+    border: 3px solid var(--black); border-radius: 12px;
+    padding: 6px 22px; font-size: 22px; font-weight: 900; letter-spacing: 2px;
+    text-shadow: 2px 2px 0 var(--black); white-space: nowrap; z-index: 3;
+    box-shadow: 0 4px 12px rgba(0,0,0,.4);
+  }
+  .meta { display: flex; gap: 12px; align-items: center; }
+  .meta .chip {
+    background: var(--cream); border: 3px solid var(--blue); border-radius: 8px;
+    padding: 6px 14px; font-weight: 900; color: var(--red); letter-spacing: 1px; font-size: 16px;
+  }
+  .meta .chip b { color: var(--blue); }
+  @media (max-width: 760px) {
+    header { padding: 12px 16px; }
+    .brand .brand-logo-img { height: 44px; max-width: 150px; }
+    .brand .name { font-size: 22px; }
+    .daub-badge { font-size: 13px; padding: 4px 12px; }
+    .meta .chip { font-size: 13px; padding: 5px 10px; }
+  }
+
+  main { flex: 1; display: flex; align-items: center; justify-content: center; padding: 24px; min-height: 0; }
+  .view { width: 100%; max-width: 1500px; text-align: center; }
+
+  /* ---------------- Buttons ---------------- */
+  .btn {
+    appearance: none; cursor: pointer; border: 4px solid var(--black);
+    background: linear-gradient(180deg, var(--yellow-bright), var(--yellow));
+    color: var(--red); font-family: inherit; font-weight: 900; letter-spacing: 2px;
+    font-size: 30px; padding: 16px 40px; border-radius: 14px;
+    text-shadow: 1px 1px 0 rgba(255,255,255,.4);
+    box-shadow: 0 8px 0 var(--red-deep), 0 14px 26px rgba(0,0,0,.45);
+    transition: transform .06s ease, box-shadow .06s ease;
+  }
+  .btn:active { transform: translateY(6px); box-shadow: 0 2px 0 var(--red-deep), 0 6px 14px rgba(0,0,0,.4); }
+  .btn.red { background: linear-gradient(180deg, #e63b53, var(--red)); color: var(--yellow); box-shadow: 0 8px 0 var(--red-deep), 0 14px 26px rgba(0,0,0,.45); }
+  .btn.blue { background: linear-gradient(180deg, var(--blue-bright), var(--blue)); color: var(--yellow); box-shadow: 0 8px 0 var(--blue-dark), 0 14px 26px rgba(0,0,0,.45); }
+  .btn.ghost { background: transparent; color: var(--cream); border-color: var(--cream); box-shadow: none; font-size: 18px; padding: 10px 20px; }
+  .btn[disabled] { opacity: .4; cursor: default; filter: grayscale(.6); }
+  .btn-row { display: flex; gap: 18px; justify-content: center; flex-wrap: wrap; margin-top: 26px; }
+
+  /* ---------------- Title / logo (shared) ---------------- */
+  .title-logo-img {
+    display: block; width: auto; max-width: min(720px, 88vw); max-height: 300px;
+    margin: 0 auto 18px; filter: drop-shadow(0 18px 32px rgba(0,0,0,.6));
+  }
+  h1.title {
+    font-size: clamp(56px, 12vw, 150px); line-height: .92; margin: 0 0 6px;
+    color: var(--red); text-shadow: 5px 5px 0 var(--yellow), 9px 9px 0 var(--black);
+  }
+  h1.title .b { color: var(--yellow); text-shadow: 5px 5px 0 var(--red), 9px 9px 0 var(--black); }
+  .subtitle { font-size: clamp(18px, 3.4vw, 34px); color: var(--cream); letter-spacing: 4px; margin: 6px 0 4px; }
+  .tagline { font-size: clamp(13px, 2vw, 20px); color: var(--ink-dim); letter-spacing: 3px; }
+
+  /* ---------------- BOARD: join panel ---------------- */
+  .join-panel {
+    display: inline-flex; align-items: stretch; gap: 28px; margin-top: 26px;
+    background: rgba(7,12,40,.55); border: 4px solid var(--yellow);
+    border-radius: 20px; padding: 26px 34px; box-shadow: var(--shadow);
+  }
+  .join-text { text-align: left; display: flex; flex-direction: column; justify-content: center; }
+  .join-text .jt-top { font-size: 22px; color: var(--cream); letter-spacing: 3px; }
+  .join-text .jt-code {
+    font-size: clamp(70px, 11vw, 150px); line-height: 1; color: var(--yellow);
+    text-shadow: 4px 4px 0 var(--black); letter-spacing: 6px;
+  }
+  .join-text .jt-url { font-size: 18px; color: var(--ink-dim); letter-spacing: 1px; margin-top: 6px; }
+  .join-text .jt-url b { color: var(--yellow-bright); }
+  .join-qr {
+    background: var(--cream); border: 6px solid var(--black); border-radius: 16px;
+    padding: 14px; display: grid; place-items: center; align-self: center;
+  }
+  .join-qr img, .join-qr canvas { display: block; }
+  .join-warn {
+    margin-top: 16px; color: #ffd; background: var(--red-dark);
+    border: 2px solid var(--yellow); border-radius: 10px; padding: 8px 14px;
+    font-size: 15px; letter-spacing: .5px; max-width: 560px;
+  }
+  .join-warn b { color: var(--yellow); }
+
+  /* ---------------- BOARD: caller / now-calling ---------------- */
+  .caller-wrap { display: flex; flex-direction: column; height: 100%; gap: 18px; }
+  .now-calling { margin: 0 auto; }
+  .nc-label { font-size: clamp(16px, 2.4vw, 26px); letter-spacing: 6px; color: var(--cream); }
+  .nc-card {
+    margin: 8px auto 0; min-width: min(680px, 92vw);
+    background: linear-gradient(180deg, var(--cream), #efe6cf);
+    border: 8px solid var(--black); border-radius: 24px;
+    box-shadow: 0 26px 60px rgba(0,0,0,.6), inset 0 -8px 0 rgba(0,0,0,.12);
+    padding: 22px 40px; position: relative;
+    animation: ncpop .4s cubic-bezier(.2,1.4,.4,1) both;
+  }
+  @keyframes ncpop { from { transform: scale(.6) rotate(-3deg); opacity: 0; } to { transform: scale(1) rotate(0); opacity: 1; } }
+  .nc-icon { font-size: clamp(70px, 13vw, 150px); line-height: 1; }
+  .nc-text {
+    font-size: clamp(34px, 6vw, 78px); font-weight: 900; color: var(--red);
+    text-shadow: 3px 3px 0 var(--yellow); line-height: 1; margin-top: 4px;
+  }
+  .nc-empty { color: var(--cream); font-size: clamp(26px, 5vw, 60px); letter-spacing: 4px; padding: 60px 0; }
+
+  /* The full pool laid out as a caller's board; called items light up. */
+  .pool-grid {
+    flex: 1; min-height: 0; display: grid; gap: 8px;
+    grid-template-columns: repeat(auto-fill, minmax(150px, 1fr));
+    align-content: start; overflow: hidden; padding: 4px;
+  }
+  .pool-cell {
+    background: rgba(255,255,255,.06); border: 2px solid rgba(247,241,227,.18);
+    border-radius: 10px; padding: 8px 6px; display: flex; align-items: center; gap: 8px;
+    font-size: 15px; font-weight: 700; color: var(--ink-dim); text-align: left;
+    transition: all .25s ease; overflow: hidden;
+  }
+  .pool-cell .pc-ico { font-size: 22px; filter: grayscale(.7); opacity: .5; }
+  .pool-cell .pc-txt { line-height: 1.05; }
+  .pool-cell.called {
+    background: linear-gradient(180deg, var(--yellow-bright), var(--yellow));
+    border-color: var(--black); color: var(--red); text-shadow: 1px 1px 0 rgba(255,255,255,.4);
+  }
+  .pool-cell.called .pc-ico { filter: none; opacity: 1; }
+  .pool-cell.current {
+    box-shadow: 0 0 0 4px var(--red), 0 0 26px rgba(244,196,48,.8);
+    transform: scale(1.04); z-index: 2;
+  }
+
+  .caller-controls { display: flex; align-items: center; justify-content: center; gap: 18px; padding-bottom: 6px; }
+  .called-count { font-size: 22px; color: var(--cream); letter-spacing: 2px; }
+  .called-count b { color: var(--yellow); font-size: 30px; }
+
+  /* mini room badge during play */
+  .room-mini {
+    position: fixed; right: 18px; bottom: 18px; z-index: 30;
+    display: flex; align-items: center; gap: 12px;
+    background: rgba(7,12,40,.82); border: 3px solid var(--yellow);
+    border-radius: 14px; padding: 10px 14px; box-shadow: 0 8px 24px rgba(0,0,0,.5);
+  }
+  .room-mini .rm-qr { background: var(--cream); border: 3px solid var(--black); border-radius: 8px; padding: 5px; }
+  .room-mini .rm-txt { text-align: left; }
+  .room-mini .rm-top { font-size: 12px; letter-spacing: 2px; color: var(--cream); }
+  .room-mini .rm-code { font-size: 30px; line-height: 1; color: var(--yellow); text-shadow: 2px 2px 0 var(--black); letter-spacing: 3px; }
+
+  /* WIN PRIZES — circular badge on the pre-game screens (matches the trivia host game) */
+  .win-prizes {
+    position: fixed; left: 56px; top: 56%;
+    transform: translateY(-50%) rotate(-8deg);
+    width: 230px; height: 230px; border-radius: 50%;
+    background: radial-gradient(circle at 50% 38%, var(--yellow-bright), var(--yellow) 70%);
+    border: 8px solid var(--red);
+    box-shadow: 0 0 0 6px var(--blue), 0 18px 40px rgba(0,0,0,.55);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    line-height: .9; z-index: 5;
+  }
+  .win-prizes .wp-top { color: var(--blue); font-size: 46px; font-weight: 900; letter-spacing: 4px; text-shadow: 2px 2px 0 rgba(0,0,0,.15); }
+  .win-prizes .wp-big { color: var(--red); font-size: 62px; font-weight: 900; letter-spacing: 2px; text-shadow: 3px 3px 0 var(--black); }
+  @media (max-width: 1100px) {
+    .win-prizes { width: 150px; height: 150px; left: 16px; border-width: 6px; }
+    .win-prizes .wp-top { font-size: 28px; }
+    .win-prizes .wp-big { font-size: 38px; }
+  }
+
+  /* WIN PRIZES — a different frame, shown under the called item during play */
+  .prize-banner {
+    margin: 4px auto 0; display: inline-flex; align-items: center; gap: 18px;
+    background: linear-gradient(180deg, #e63b53, var(--red));
+    border: 5px solid var(--yellow); border-radius: 16px;
+    padding: 9px 30px; box-shadow: 0 10px 26px rgba(0,0,0,.5);
+    transform: rotate(-1deg);
+  }
+  .prize-banner .pb-star { font-size: 40px; line-height: 1; }
+  .prize-banner .pb-mid { text-align: center; line-height: 1; }
+  .prize-banner .pb-top { color: var(--yellow); font-size: 30px; letter-spacing: 4px; font-weight: 900; text-shadow: 2px 2px 0 var(--black); }
+  .prize-banner .pb-top b { color: #fff; }
+  .prize-banner .pb-sub { color: var(--cream); font-size: 15px; letter-spacing: 2px; margin-top: 4px; }
+  @media (max-width: 1100px) {
+    .prize-banner { padding: 7px 18px; gap: 12px; }
+    .prize-banner .pb-star { font-size: 28px; }
+    .prize-banner .pb-top { font-size: 22px; }
+    .prize-banner .pb-sub { font-size: 12px; }
+  }
+
+  /* BINGO shout toast on the board */
+  #shoutWrap { position: fixed; left: 0; right: 0; top: 90px; z-index: 50; display: flex; flex-direction: column; align-items: center; gap: 10px; pointer-events: none; }
+  .shout {
+    background: linear-gradient(180deg, #e63b53, var(--red)); color: var(--yellow);
+    border: 5px solid var(--black); border-radius: 16px; padding: 14px 30px;
+    font-size: 34px; font-weight: 900; letter-spacing: 2px; text-shadow: 2px 2px 0 var(--black);
+    box-shadow: 0 14px 34px rgba(0,0,0,.5); animation: shoutIn .4s cubic-bezier(.2,1.5,.4,1) both;
+  }
+  @keyframes shoutIn { from { transform: translateY(-30px) scale(.7); opacity: 0; } to { transform: none; opacity: 1; } }
+
+  /* ---------------- PHONE ---------------- */
+  body.phone { background-attachment: scroll; }
+  body.phone main { padding: 14px 12px 28px; align-items: flex-start; }
+  .phone-wrap { width: 100%; max-width: 560px; margin: 0 auto; }
+
+  /* phone: join screen */
+  .join-form { background: rgba(7,12,40,.5); border: 4px solid var(--yellow); border-radius: 20px; padding: 26px 22px; box-shadow: var(--shadow); margin-top: 18px; }
+  .field-label { display: block; text-align: left; font-size: 15px; letter-spacing: 3px; color: var(--cream); margin: 14px 4px 6px; }
+  .ce-input, .txt-input {
+    width: 100%; font-family: inherit; font-weight: 900; text-align: center;
+    border: 4px solid var(--black); border-radius: 12px; background: var(--cream); color: var(--red);
+    padding: 12px; outline: none;
+  }
+  .ce-input { font-size: 52px; letter-spacing: 12px; text-transform: uppercase; }
+  .ce-input::placeholder { color: rgba(200,16,46,.3); letter-spacing: 8px; }
+  .txt-input { font-size: 24px; letter-spacing: 2px; }
+  .ce-err { color: var(--yellow-bright); min-height: 20px; margin-top: 10px; font-size: 15px; }
+
+  /* phone: now-calling strip */
+  .pcall {
+    position: sticky; top: 0; z-index: 20; margin: -14px -12px 12px; padding: 12px 14px;
+    background: var(--blue-dark); border-bottom: 5px solid var(--yellow);
+    display: flex; align-items: center; gap: 14px; box-shadow: 0 6px 18px rgba(0,0,0,.45);
+  }
+  .pcall .pc-lab { font-size: 12px; letter-spacing: 3px; color: var(--cream); }
+  .pcall .pc-now { display: flex; align-items: center; gap: 10px; }
+  .pcall .pc-now .ico { font-size: 40px; }
+  .pcall .pc-now .txt { font-size: 26px; font-weight: 900; color: var(--yellow); text-shadow: 2px 2px 0 var(--black); line-height: 1; text-align: left; }
+  .pcall .pc-hint { font-size: 12px; color: var(--ink-dim); letter-spacing: 1px; }
+  .pcall.empty .pc-now .txt { color: var(--cream); font-size: 20px; }
+
+  /* phone: bingo card */
+  .card-grid {
+    display: grid; grid-template-columns: repeat(5, 1fr); gap: 7px; width: 100%;
+    aspect-ratio: 1 / 1.06;
+  }
+  .cell {
+    position: relative; border: 3px solid var(--black); border-radius: 12px;
+    background: linear-gradient(180deg, var(--cream), #ece2cc);
+    display: flex; flex-direction: column; align-items: center; justify-content: center;
+    gap: 2px; padding: 4px 3px; text-align: center; cursor: pointer;
+    box-shadow: 0 3px 0 rgba(0,0,0,.25); overflow: hidden;
+    transition: transform .08s ease;
+  }
+  .cell:active { transform: scale(.94); }
+  .cell .c-ico { font-size: clamp(16px, 5.5vw, 30px); line-height: 1; }
+  .cell .c-txt { font-size: clamp(7.5px, 2.5vw, 12px); font-weight: 800; color: var(--blue-dark); line-height: 1.02; letter-spacing: .2px; }
+  .cell.free { background: linear-gradient(180deg, var(--blue-bright), var(--blue)); }
+  .cell.free .c-ico { font-size: clamp(13px, 4.5vw, 24px); }
+  .cell.free .c-txt { color: var(--yellow); font-size: clamp(9px, 3vw, 15px); }
+  /* an item that's been called but not yet daubed -> pulse to nudge a tap */
+  .cell.callable { animation: callable 1s ease-in-out infinite; }
+  @keyframes callable {
+    0%,100% { box-shadow: 0 3px 0 rgba(0,0,0,.25), 0 0 0 0 rgba(244,196,48,.0); }
+    50%     { box-shadow: 0 3px 0 rgba(0,0,0,.25), 0 0 0 5px rgba(244,196,48,.85); }
+  }
+  /* the daub stamp */
+  .cell.daubed::after {
+    content: ""; position: absolute; left: 50%; top: 50%;
+    width: 78%; height: 78%; transform: translate(-50%,-50%);
+    background: radial-gradient(circle at 38% 34%, #e63b53 0%, var(--red) 55%, var(--red-deep) 100%);
+    border-radius: 50%; box-shadow: 0 2px 6px rgba(0,0,0,.45), inset 0 -4px 8px rgba(0,0,0,.35);
+    opacity: .92; animation: stamp .22s cubic-bezier(.2,1.5,.4,1) both;
+  }
+  .cell.daubed::before {
+    content: "🍗"; position: absolute; left: 50%; top: 50%;
+    transform: translate(-50%,-50%) rotate(-12deg); font-size: clamp(18px, 6vw, 34px);
+    z-index: 2; filter: drop-shadow(0 1px 1px rgba(0,0,0,.5));
+  }
+  @keyframes stamp { from { transform: translate(-50%,-50%) scale(1.8); opacity: 0; } to { opacity: .92; } }
+  .cell.win { animation: winflash .7s ease-in-out infinite; }
+  @keyframes winflash {
+    0%,100% { box-shadow: 0 3px 0 rgba(0,0,0,.25), 0 0 0 3px var(--yellow); }
+    50%     { box-shadow: 0 3px 0 rgba(0,0,0,.25), 0 0 0 6px var(--yellow-bright); }
+  }
+
+  .card-foot { display: flex; gap: 10px; align-items: center; justify-content: space-between; margin-top: 14px; }
+  .progress-pill { font-size: 14px; letter-spacing: 2px; color: var(--cream); }
+  .progress-pill b { color: var(--yellow); font-size: 18px; }
+  .btn.bingo-btn { font-size: 26px; padding: 14px 34px; flex: 1; }
+
+  /* phone bingo overlay */
+  #bingoOverlay {
+    position: fixed; inset: 0; z-index: 100; display: none;
+    align-items: center; justify-content: center; flex-direction: column;
+    background: radial-gradient(circle at 50% 40%, rgba(200,16,46,.92), rgba(10,10,10,.96));
+    text-align: center; padding: 24px;
+  }
+  #bingoOverlay.show { display: flex; animation: fadein .3s both; }
+  @keyframes fadein { from { opacity: 0; } to { opacity: 1; } }
+  #bingoOverlay .bo-big {
+    font-size: clamp(70px, 24vw, 200px); line-height: .9; color: var(--yellow);
+    text-shadow: 4px 4px 0 var(--black), 0 0 40px rgba(244,196,48,.7);
+    animation: bowob .9s ease-in-out infinite;
+  }
+  @keyframes bowob { 0%,100% { transform: rotate(-3deg) scale(1); } 50% { transform: rotate(3deg) scale(1.06); } }
+  #bingoOverlay .bo-sub { font-size: clamp(20px, 6vw, 34px); color: var(--cream); letter-spacing: 3px; margin: 10px 0 26px; }
+  .confetti { position: fixed; top: -20px; font-size: 26px; pointer-events: none; z-index: 99; animation: fall linear forwards; }
+  @keyframes fall { to { transform: translateY(105vh) rotate(720deg); opacity: .2; } }
+
+  /* waiting state */
+  .waiting { color: var(--cream); }
+  .waiting h2 { color: var(--yellow); font-size: clamp(30px, 6vw, 60px); margin: 10px 0; }
+  .waiting .dots::after { content: "…"; animation: dots 1.4s steps(4) infinite; }
+  @keyframes dots { 0% { content: ""; } 25% { content: "."; } 50% { content: ".."; } 75% { content: "..."; } }
+
+  footer.board-foot {
+    text-align: center; padding: 10px; color: var(--ink-dim); font-size: 14px; letter-spacing: 2px;
+  }
+  footer.board-foot kbd {
+    background: var(--cream); color: var(--blue); border-radius: 5px; padding: 1px 7px;
+    border: 2px solid var(--blue); font-weight: 900; font-family: inherit; font-size: 12px;
+  }
+  body.phone footer.board-foot { display: none; }
+</style>
+</head>
+<body class="board">
+<div id="app">
+  <header>
+    <div class="brand">
+      <img class="brand-logo-img" src="pluckers-logo.png?v=1" alt="Pluckers" onerror="this.style.display='none'" />
+      <div class="name">BINGO<small>NIGHT</small></div>
+    </div>
+    <div class="daub-badge">🍗 DAUB &amp; WIN!</div>
+    <div class="meta" id="meta"></div>
+  </header>
+
+  <main id="main"></main>
+
+  <footer class="board-foot" id="boardFoot">
+    <span><kbd>SPACE</kbd> / <kbd>→</kbd> Call Next</span>&nbsp;&nbsp;
+    <span><kbd>F</kbd> Fullscreen</span>
+  </footer>
+</div>
+
+<div id="shoutWrap"></div>
+<div id="bingoOverlay"></div>
+
+<!-- Live sync (Supabase) + QR for the phone-join link. Loaded from CDN; the
+     board still previews offline via ?demo if these don't load. -->
+<script src="https://cdn.jsdelivr.net/npm/@supabase/supabase-js@2"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/qrcodejs/1.0.0/qrcode.min.js"></script>
+<script>
+"use strict";
+
+// ============================================================
+// THE CALL POOL — Pluckers / bar-night themed bingo items.
+// The caller (board) draws from this list; each phone gets a random
+// 5x5 card built from it. Edit freely: { icon, text }. Keep 24+ items.
+// ============================================================
+const DEFAULT_POOL = [
+  { icon: "🍗", text: "Boneless Wings" },
+  { icon: "🍗", text: "Bone-In Wings" },
+  { icon: "🔥", text: "Fire in the Hole" },
+  { icon: "🌶️", text: "Buffalo Sauce" },
+  { icon: "🍋", text: "Lemon Pepper" },
+  { icon: "🍯", text: "Honey BBQ" },
+  { icon: "🧄", text: "Garlic Parm" },
+  { icon: "🧀", text: "Queso & Chips" },
+  { icon: "🍟", text: "Cajun Fries" },
+  { icon: "🥗", text: "Ranch Dressing" },
+  { icon: "🍔", text: "Pluckers Burger" },
+  { icon: "🌯", text: "Wing Wrap" },
+  { icon: "🍺", text: "Cold Draft Beer" },
+  { icon: "🥤", text: "Soda Refill" },
+  { icon: "🍻", text: "Cheers / Toast" },
+  { icon: "🥃", text: "Shot Ordered" },
+  { icon: "🏈", text: "Touchdown!" },
+  { icon: "📺", text: "Game-Winning Play" },
+  { icon: "📣", text: "“Order Up!”" },
+  { icon: "🏆", text: "Trivia Winner" },
+  { icon: "🎉", text: "Birthday Shout-Out" },
+  { icon: "👏", text: "Big Cheer at the Bar" },
+  { icon: "🤠", text: "“Y’all” Overheard" },
+  { icon: "😤", text: "“It’s Too Spicy!”" },
+  { icon: "📱", text: "Someone on Their Phone" },
+  { icon: "🧻", text: "Extra Napkins" },
+  { icon: "🧊", text: "Out of Ice" },
+  { icon: "⏱️", text: "Last Call" },
+  { icon: "🪧", text: "Drink Special Sign" },
+  { icon: "📸", text: "Table Selfie" },
+  { icon: "🎵", text: "Everyone Knows the Song" },
+  { icon: "🎯", text: "Darts / Pool Game" },
+  { icon: "🧂", text: "Salt the Rim" },
+  { icon: "🍗", text: "Naked Tenders" },
+  { icon: "🤝", text: "High-Five" },
+  { icon: "💸", text: "Splitting the Check" },
+];
+
+// ============================================================
+// LIVE SYNC (Supabase) — reuses the Pluckers Trivia project.
+// The board "hosts" a room; phones opened with ?play&room=CODE join,
+// mirror the called items, and broadcast a BINGO shout back.
+// ============================================================
+const SUPABASE_URL      = "https://yfatjubmmnykwopnuoyk.supabase.co";
+const SUPABASE_ANON_KEY = "sb_publishable_KcWaVrtqXLfIt80bHliCCw_V9kLdvVV";
+const LIVE_TABLE        = "sessions";          // shared table (jsonb payload packed into `rounds`)
+const HOST_RESUME_KEY   = "pluckers-bingo-host";
+const CARD_KEY_PREFIX   = "pluckers-bingo-card-";
+
+const live = { role: "off", code: null, sb: null, channel: null };
+
+function liveConfigured() {
+  return SUPABASE_URL && SUPABASE_ANON_KEY && typeof window.supabase !== "undefined";
+}
+function liveClient() {
+  if (!live.sb) live.sb = window.supabase.createClient(SUPABASE_URL, SUPABASE_ANON_KEY);
+  return live.sb;
+}
+function makeRoomCode() {
+  const chars = "ABCDEFGHJKMNPQRSTUVWXYZ23456789"; // no ambiguous 0/O/1/I/L
+  let s = "";
+  for (let i = 0; i < 4; i++) s += chars[Math.floor(Math.random() * chars.length)];
+  return s;
+}
+function playBaseUrl() { return location.origin + location.pathname + "?play"; }
+function joinUrl()     { return playBaseUrl() + "&room=" + encodeURIComponent(live.code || ""); }
+function isLocalUrl() {
+  const h = location.hostname;
+  return location.protocol === "file:" ||
+         h === "localhost" || h === "127.0.0.1" || h === "" ||
+         h.endsWith(".local") || /^192\.168\./.test(h) || /^10\./.test(h);
+}
+function escapeHtml(s) {
+  return String(s).replace(/[&<>"']/g, (c) =>
+    ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" }[c]));
+}
+
+// ============================================================
+// GAME STATE
+// ============================================================
+// The board owns these; on phones they're filled from the remote snapshot.
+let POOL    = DEFAULT_POOL.slice();
+const game  = { started: false, called: [], current: null }; // called/current are indices into POOL
+
+const main      = document.getElementById("main");
+const isPhone   = new URLSearchParams(location.search).has("play");
+
+// ---- the player's card (phone only) ----
+const player = { room: null, name: "", layout: null, daubed: null, wonLines: 0 };
+
+function cardStoreKey() { return CARD_KEY_PREFIX + (player.room || "x"); }
+function buildCard() {
+  // 24 distinct pool indices + a FREE center (index 12 in the 25-cell grid).
+  const idxs = POOL.map((_, i) => i);
+  for (let i = idxs.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [idxs[i], idxs[j]] = [idxs[j], idxs[i]];
+  }
+  const pick = idxs.slice(0, 24);
+  const layout = [];
+  let p = 0;
+  for (let c = 0; c < 25; c++) layout.push(c === 12 ? "FREE" : pick[p++]);
+  player.layout = layout;
+  player.daubed = layout.map((v, c) => c === 12); // free space starts daubed
+  player.wonLines = 0;
+  saveCard();
+}
+function saveCard() {
+  try {
+    localStorage.setItem(cardStoreKey(), JSON.stringify({
+      layout: player.layout, daubed: player.daubed, name: player.name, n: POOL.length
+    }));
+  } catch (e) {}
+}
+function loadCard() {
+  try {
+    const raw = localStorage.getItem(cardStoreKey());
+    if (!raw) return false;
+    const o = JSON.parse(raw);
+    // Only reuse a saved card if it matches the current pool size.
+    if (!o || !Array.isArray(o.layout) || o.layout.length !== 25 || o.n !== POOL.length) return false;
+    player.layout = o.layout;
+    player.daubed = Array.isArray(o.daubed) && o.daubed.length === 25 ? o.daubed : o.layout.map((v, c) => c === 12);
+    if (o.name) player.name = o.name;
+    player.daubed[12] = true;
+    return true;
+  } catch (e) { return false; }
+}
+
+// All 12 winning lines of a 5x5 card (row/col/diagonal), as cell indices.
+const LINES = (() => {
+  const L = [];
+  for (let r = 0; r < 5; r++) L.push([0,1,2,3,4].map((c) => r*5 + c));
+  for (let c = 0; c < 5; c++) L.push([0,1,2,3,4].map((r) => r*5 + c));
+  L.push([0,6,12,18,24]);
+  L.push([4,8,12,16,20]);
+  return L;
+})();
+function completedLines() {
+  return LINES.filter((line) => line.every((i) => player.daubed[i]));
+}
+function winningCells() {
+  const s = new Set();
+  completedLines().forEach((line) => line.forEach((i) => s.add(i)));
+  return s;
+}
+
+// ============================================================
+// RENDER
+// ============================================================
+function setMeta(html) { document.getElementById("meta").innerHTML = html || ""; }
+
+function render() {
+  if (isPhone) renderPhone();
+  else renderBoard();
+}
+
+// ---------------- BOARD ----------------
+function renderBoard() {
+  document.getElementById("boardFoot").style.display = (live.role === "host" && game.started) ? "" : "none";
+
+  if (live.role !== "host") { renderBoardTitle(false); return; }
+  if (!game.started)        { renderBoardLobby(); return; }
+  renderBoardCaller();
+}
+
+function renderBoardTitle(/*live*/) {
+  setMeta("");
+  removeRoomMini();
+  main.innerHTML =
+    '<div class="win-prizes"><span class="wp-top">WIN</span><span class="wp-big">PRIZES!</span></div>' +
+    '<div class="view">' +
+      '<img class="title-logo-img" src="pluckers-logo.png?v=1" alt="Pluckers" onerror="this.style.display=\'none\'" />' +
+      '<h1 class="title">PLUCKERS <span class="b">BINGO</span></h1>' +
+      '<div class="subtitle">PLAY RIGHT ON YOUR PHONE</div>' +
+      '<div class="tagline">🍗 DAUB THE SQUARES • FIRST TO A LINE WINS 🍗</div>' +
+      '<div class="btn-row">' +
+        '<button class="btn red" id="goLiveBtn">📺 START A GAME</button>' +
+      '</div>' +
+    '</div>';
+  document.getElementById("goLiveBtn").addEventListener("click", goLive);
+}
+
+function renderBoardLobby() {
+  setMeta('<span class="chip">● LIVE <b>' + escapeHtml(live.code) + '</b></span>');
+  removeRoomMini();
+  const shareable = location.protocol === "http:" || location.protocol === "https:";
+  main.innerHTML =
+    '<div class="win-prizes"><span class="wp-top">WIN</span><span class="wp-big">PRIZES!</span></div>' +
+    '<div class="view">' +
+      '<h1 class="title" style="font-size:clamp(40px,8vw,96px)">SCAN TO <span class="b">PLAY</span></h1>' +
+      '<div class="join-panel">' +
+        '<div class="join-text">' +
+          '<div class="jt-top">ROOM CODE</div>' +
+          '<div class="jt-code">' + escapeHtml(live.code) + '</div>' +
+          '<div class="jt-url">' +
+            (shareable
+              ? 'on your phone go to <b>' + escapeHtml(stripProto(playBaseUrl())) + '</b><br>and enter the code'
+              : 'scan the code with your phone,<br>then enter the room code') +
+          '</div>' +
+        '</div>' +
+        '<div class="join-qr" id="lobbyQr"></div>' +
+      '</div>' +
+      '<div class="btn-row">' +
+        '<button class="btn" id="startBtn">🎉 START CALLING</button>' +
+        '<button class="btn ghost" id="endBtn">END</button>' +
+      '</div>' +
+    '</div>';
+  document.getElementById("startBtn").addEventListener("click", () => { callNext(); });
+  document.getElementById("endBtn").addEventListener("click", endGame);
+  renderQr("lobbyQr", joinUrl(), 230, false);   // always show the join QR (even locally)
+}
+
+function renderBoardCaller() {
+  setMeta('<span class="chip">● LIVE <b>' + escapeHtml(live.code) + '</b></span>');
+  const cur = (game.current != null) ? POOL[game.current] : null;
+  const calledSet = new Set(game.called);
+  const allCalled = game.called.length >= POOL.length;
+
+  let poolHtml = "";
+  POOL.forEach((it, i) => {
+    const cls = "pool-cell" + (calledSet.has(i) ? " called" : "") + (i === game.current ? " current" : "");
+    poolHtml +=
+      '<div class="' + cls + '">' +
+        '<span class="pc-ico">' + it.icon + '</span>' +
+        '<span class="pc-txt">' + escapeHtml(it.text) + '</span>' +
+      '</div>';
+  });
+
+  main.innerHTML =
+    '<div class="view" style="height:100%">' +
+      '<div class="caller-wrap">' +
+        '<div class="now-calling">' +
+          '<div class="nc-label">NOW CALLING</div>' +
+          (cur
+            ? '<div class="nc-card" id="ncCard"><div class="nc-icon">' + cur.icon + '</div>' +
+              '<div class="nc-text">' + escapeHtml(cur.text) + '</div></div>'
+            : '<div class="nc-empty">Press CALL to begin…</div>') +
+        '</div>' +
+        '<div class="prize-banner">' +
+          '<span class="pb-star">🏆</span>' +
+          '<div class="pb-mid"><div class="pb-top">WIN <b>PRIZES!</b></div>' +
+          '<div class="pb-sub">FIRST TO A FULL LINE YELLS BINGO!</div></div>' +
+          '<span class="pb-star">🍗</span>' +
+        '</div>' +
+        '<div class="pool-grid">' + poolHtml + '</div>' +
+        '<div class="caller-controls">' +
+          '<span class="called-count"><b>' + game.called.length + '</b> / ' + POOL.length + ' called</span>' +
+          (allCalled
+            ? '<button class="btn" disabled>ALL CALLED</button>'
+            : '<button class="btn red" id="callBtn">CALL NEXT →</button>') +
+          '<button class="btn ghost" id="newGameBtn">NEW GAME</button>' +
+          '<button class="btn ghost" id="endBtn2">END</button>' +
+        '</div>' +
+      '</div>' +
+    '</div>';
+  const cb = document.getElementById("callBtn");
+  if (cb) cb.addEventListener("click", callNext);
+  document.getElementById("newGameBtn").addEventListener("click", newGame);
+  document.getElementById("endBtn2").addEventListener("click", endGame);
+  mountRoomMini();
+}
+
+function stripProto(u) { return u.replace(/^https?:\/\//, ""); }
+
+// Small persistent room badge + QR so latecomers can still join mid-game.
+function mountRoomMini() {
+  let el = document.getElementById("roomMini");
+  if (!el) {
+    el = document.createElement("div");
+    el.id = "roomMini"; el.className = "room-mini";
+    el.innerHTML =
+      '<div class="rm-qr" id="rmQr"></div>' +
+      '<div class="rm-txt"><div class="rm-top">SCAN TO JOIN</div>' +
+      '<div class="rm-code">' + escapeHtml(live.code) + '</div></div>';
+    document.body.appendChild(el);
+    renderQr("rmQr", joinUrl(), 84, false);
+  }
+}
+function removeRoomMini() { const el = document.getElementById("roomMini"); if (el) el.remove(); }
+
+function renderQr(id, url, size, local) {
+  const host = document.getElementById(id);
+  if (!host) return;
+  host.innerHTML = "";
+  if (local || typeof QRCode === "undefined") { host.style.display = "none"; return; }
+  host.style.display = "";
+  try { new QRCode(host, { text: url, width: size, height: size, correctLevel: QRCode.CorrectLevel.M }); }
+  catch (e) { host.style.display = "none"; }
+}
+
+// ---------------- PHONE ----------------
+function renderPhone() {
+  if (!player.room) { renderPhoneJoin(); return; }
+  if (!player.layout) { renderPhoneWaiting(); return; }
+  renderPhoneCard();
+}
+
+function renderPhoneJoin(prefillCode) {
+  setMeta("");
+  main.innerHTML =
+    '<div class="phone-wrap view">' +
+      '<img class="title-logo-img" src="pluckers-logo.png?v=1" alt="Pluckers" onerror="this.style.display=\'none\'" />' +
+      '<h1 class="title" style="font-size:clamp(44px,13vw,90px)">BINGO</h1>' +
+      '<div class="join-form">' +
+        '<label class="field-label">ROOM CODE</label>' +
+        '<input id="ceInput" class="ce-input" maxlength="4" autocomplete="off" autocapitalize="characters" ' +
+          'spellcheck="false" inputmode="text" placeholder="••••" value="' + escapeHtml(prefillCode || "") + '" />' +
+        '<label class="field-label">YOUR NAME / TABLE (optional)</label>' +
+        '<input id="nameInput" class="txt-input" maxlength="16" autocomplete="off" placeholder="e.g. Table 4" value="' + escapeHtml(player.name || "") + '" />' +
+        '<div class="btn-row" style="margin-top:18px">' +
+          '<button class="btn red" id="joinBtn">JOIN GAME 🍗</button>' +
+        '</div>' +
+        '<p class="ce-err" id="ceErr"></p>' +
+      '</div>' +
+    '</div>';
+  const ci = document.getElementById("ceInput");
+  const go = () => {
+    const code = (ci.value || "").trim().toUpperCase();
+    player.name = (document.getElementById("nameInput").value || "").trim();
+    if (code.length < 3) { document.getElementById("ceErr").textContent = "Enter the room code shown on the screen."; ci.focus(); return; }
+    joinRoom(code);
+  };
+  document.getElementById("joinBtn").addEventListener("click", go);
+  ci.addEventListener("keydown", (e) => { if (e.key === "Enter") go(); });
+  if (!prefillCode) ci.focus();
+}
+
+function renderPhoneWaiting() {
+  setMeta('<span class="chip">ROOM <b>' + escapeHtml(player.room) + '</b></span>');
+  main.innerHTML =
+    '<div class="phone-wrap view waiting">' +
+      '<div style="font-size:64px">🍗</div>' +
+      '<h2>Hang tight<span class="dots"></span></h2>' +
+      '<p>You\'re in room <b style="color:var(--yellow)">' + escapeHtml(player.room) + '</b>.<br>' +
+      'Your card appears the moment the caller starts.</p>' +
+    '</div>';
+}
+
+function renderPhoneCard() {
+  setMeta('<span class="chip">ROOM <b>' + escapeHtml(player.room) + '</b></span>');
+  const cur = (game.current != null) ? POOL[game.current] : null;
+  const calledSet = new Set(game.called);
+  const winCells = winningCells();
+
+  // now-calling strip
+  let callHtml;
+  if (cur) {
+    callHtml =
+      '<div class="pcall"><div><div class="pc-lab">NOW CALLING</div>' +
+        '<div class="pc-now"><span class="ico">' + cur.icon + '</span>' +
+        '<span class="txt">' + escapeHtml(cur.text) + '</span></div></div>' +
+        '<div class="pc-hint">Got it?<br>Tap to daub →</div></div>';
+  } else {
+    callHtml = '<div class="pcall empty"><div><div class="pc-lab">NOW CALLING</div>' +
+      '<div class="pc-now"><span class="txt">Waiting for the caller…</span></div></div></div>';
+  }
+
+  // 5x5 grid
+  let cells = "";
+  for (let c = 0; c < 25; c++) {
+    const v = player.layout[c];
+    if (v === "FREE") {
+      cells += '<div class="cell free daubed' + (winCells.has(c) ? " win" : "") + '">' +
+        '<span class="c-ico">🍗</span><span class="c-txt">FREE</span></div>';
+      continue;
+    }
+    const it = POOL[v];
+    const called = calledSet.has(v);
+    const daubed = player.daubed[c];
+    const cls = "cell" + (daubed ? " daubed" : "") + (called && !daubed ? " callable" : "") + (winCells.has(c) ? " win" : "");
+    cells += '<div class="' + cls + '" data-cell="' + c + '">' +
+      '<span class="c-ico">' + (it ? it.icon : "") + '</span>' +
+      '<span class="c-txt">' + (it ? escapeHtml(it.text) : "") + '</span></div>';
+  }
+
+  const lines = completedLines().length;
+  const daubCount = player.daubed.filter(Boolean).length - 1; // minus FREE
+
+  main.innerHTML =
+    callHtml +
+    '<div class="phone-wrap">' +
+      '<div class="card-grid">' + cells + '</div>' +
+      '<div class="card-foot">' +
+        '<span class="progress-pill"><b>' + daubCount + '</b> daubed</span>' +
+        '<button class="btn bingo-btn ' + (lines > 0 ? "red" : "") + '" id="bingoBtn"' + (lines > 0 ? "" : " disabled") + '>' +
+          (lines > 0 ? "BINGO! 🎉" : "NO BINGO YET") + '</button>' +
+      '</div>' +
+      '<div class="btn-row" style="margin-top:14px">' +
+        '<button class="btn ghost" id="newCardBtn">🔀 NEW CARD</button>' +
+      '</div>' +
+    '</div>';
+
+  main.querySelectorAll(".cell[data-cell]").forEach((el) => {
+    el.addEventListener("click", () => tapCell(parseInt(el.getAttribute("data-cell"), 10)));
+  });
+  document.getElementById("bingoBtn").addEventListener("click", () => { if (completedLines().length) celebrateBingo(true); });
+  document.getElementById("newCardBtn").addEventListener("click", () => {
+    if (confirm("Get a brand-new random card? Your current daubs will be cleared.")) { buildCard(); render(); }
+  });
+}
+
+function tapCell(c) {
+  if (c === 12) return;                 // FREE space
+  const v = player.layout[c];
+  if (!game.called.includes(v)) {       // can't daub what hasn't been called
+    const el = main.querySelector('[data-cell="' + c + '"]');
+    if (el) { el.animate([{transform:"translateX(-4px)"},{transform:"translateX(4px)"},{transform:"none"}], {duration:180}); }
+    return;
+  }
+  const before = completedLines().length;
+  player.daubed[c] = !player.daubed[c];
+  saveCard();
+  render();
+  const after = completedLines().length;
+  if (after > before) celebrateBingo(false);
+}
+
+// ============================================================
+// BINGO celebration + shout to the board
+// ============================================================
+function celebrateBingo(manual) {
+  const ov = document.getElementById("bingoOverlay");
+  ov.innerHTML =
+    '<div class="bo-big">BINGO!</div>' +
+    '<div class="bo-sub">🍗 Show the caller to claim your prize! 🍗</div>' +
+    '<button class="btn" id="boClose">KEEP PLAYING</button>';
+  ov.classList.add("show");
+  document.getElementById("boClose").addEventListener("click", () => ov.classList.remove("show"), { once: true });
+  dropConfetti();
+  // tell the board (once per new line)
+  const lines = completedLines().length;
+  if (lines > player.wonLines) {
+    player.wonLines = lines;
+    shoutToBoard();
+  }
+}
+function dropConfetti() {
+  const emojis = ["🍗","🎉","🔥","⭐","🍺","🏆"];
+  for (let i = 0; i < 40; i++) {
+    const c = document.createElement("div");
+    c.className = "confetti";
+    c.textContent = emojis[Math.floor(Math.random() * emojis.length)];
+    c.style.left = Math.random() * 100 + "vw";
+    c.style.animationDuration = (1.6 + Math.random() * 1.8) + "s";
+    c.style.fontSize = (18 + Math.random() * 22) + "px";
+    document.body.appendChild(c);
+    setTimeout(() => c.remove(), 3600);
+  }
+}
+function shoutToBoard() {
+  if (!live.channel) return;
+  try {
+    live.channel.send({
+      type: "broadcast", event: "bingo",
+      payload: { name: player.name || "A player" }
+    });
+  } catch (e) {}
+}
+function showShout(name) {
+  const wrap = document.getElementById("shoutWrap");
+  const el = document.createElement("div");
+  el.className = "shout";
+  el.textContent = "🍗 BINGO! — " + (name || "A player");
+  wrap.appendChild(el);
+  setTimeout(() => el.remove(), 7000);
+  dropConfetti();
+}
+
+// ============================================================
+// SYNC: board pushes state; everyone subscribes; phones broadcast bingo.
+// ============================================================
+function snapshot() {
+  return {
+    room_code: live.code,
+    state: game.started ? "playing" : "lobby",
+    round_idx: 0,
+    question_idx: game.called.length,
+    rounds: { pool: POOL, called: game.called, current: game.current, started: game.started },
+    updated_at: new Date().toISOString()
+  };
+}
+
+async function pushState() {
+  if (live.role !== "host" || !live.code) return;
+  try { await liveClient().from(LIVE_TABLE).upsert(snapshot()); } catch (e) {}
+}
+
+// ---- Board / caller actions ----
+async function goLive() {
+  if (!liveConfigured()) {
+    alert("Live play isn't set up.\n\nThis file needs the Supabase URL + key (it reuses the Pluckers Trivia project). Make sure you have internet, then reload.");
+    return;
+  }
+  live.role = "host";
+  live.code = makeRoomCode();
+  POOL = DEFAULT_POOL.slice();
+  game.started = false; game.called = []; game.current = null;
+  try {
+    const { error } = await liveClient().from(LIVE_TABLE).upsert(snapshot());
+    if (error) throw error;
+  } catch (err) {
+    live.role = "off"; live.code = null;
+    alert("Couldn't start the live game:\n" + (err.message || err));
+    return;
+  }
+  openChannel(live.code);
+  rememberHost();
+  render();
+}
+
+function callNext() {
+  const remaining = POOL.map((_, i) => i).filter((i) => !game.called.includes(i));
+  if (!remaining.length) return;
+  game.started = true;
+  const idx = remaining[Math.floor(Math.random() * remaining.length)];
+  game.current = idx;
+  game.called.push(idx);
+  render();
+  pushState();
+}
+
+function newGame() {
+  if (!confirm("Start a fresh game? This clears the called items (players keep their cards).")) return;
+  game.started = false; game.called = []; game.current = null;
+  render();
+  pushState();
+}
+
+function endGame() {
+  if (!confirm("End this game?")) return;
+  stopLive();
+  render();
+}
+
+function rememberHost() {
+  try { localStorage.setItem(HOST_RESUME_KEY, JSON.stringify({ code: live.code, t: Date.now() })); } catch (e) {}
+}
+
+async function resumeHostIfAny() {
+  let saved = null;
+  try { saved = JSON.parse(localStorage.getItem(HOST_RESUME_KEY)); } catch (e) {}
+  if (!saved || !saved.code || !liveConfigured() || (Date.now() - (saved.t || 0)) > 8 * 3600 * 1000) { render(); return; }
+  try {
+    const { data } = await liveClient().from(LIVE_TABLE).select("*").eq("room_code", saved.code).maybeSingle();
+    if (!data) { render(); return; }
+    live.role = "host";
+    live.code = saved.code;
+    applySnapshot(data);
+    openChannel(live.code);
+    rememberHost();
+    render();
+  } catch (e) { render(); }
+}
+
+function stopLive() {
+  if (live.channel && live.sb) { try { live.sb.removeChannel(live.channel); } catch (e) {} }
+  live.role = "off"; live.code = null; live.channel = null;
+  try { localStorage.removeItem(HOST_RESUME_KEY); } catch (e) {}
+  removeRoomMini();
+}
+
+// ---- Phone: join + mirror ----
+async function joinRoom(code) {
+  live.role = "player";
+  live.code = code;
+  player.room = code;
+  if (!liveConfigured()) { renderPhoneWaiting(); return; }
+  const sb = liveClient();
+  try {
+    const { data } = await sb.from(LIVE_TABLE).select("*").eq("room_code", code).maybeSingle();
+    if (data) applySnapshot(data);
+  } catch (e) {}
+  openChannel(code);
+  render();
+}
+
+// Shared channel: mirror DB changes + relay BINGO broadcasts.
+function openChannel(code) {
+  const sb = liveClient();
+  if (live.channel) { try { sb.removeChannel(live.channel); } catch (e) {} }
+  live.channel = sb.channel("bingo-" + code, { config: { broadcast: { self: false } } })
+    .on("postgres_changes",
+        { event: "*", schema: "public", table: LIVE_TABLE, filter: "room_code=eq." + code },
+        (payload) => { if (payload.new && live.role !== "host") applySnapshot(payload.new); })
+    .on("broadcast", { event: "bingo" }, (msg) => {
+        if (live.role === "host" && msg && msg.payload) showShout(msg.payload.name);
+    })
+    .subscribe();
+}
+
+// Apply a remote snapshot (used by phones mirroring, and by host resume).
+function applySnapshot(row) {
+  const r = row.rounds;
+  if (r && typeof r === "object" && !Array.isArray(r)) {
+    if (Array.isArray(r.pool) && r.pool.length) POOL = r.pool;
+    game.called  = Array.isArray(r.called) ? r.called : [];
+    game.current = (typeof r.current === "number") ? r.current : null;
+    game.started = !!r.started;
+  }
+  // On a phone, make sure we have a card built from this room's pool.
+  if (isPhone && game.started) {
+    if (!player.layout) { if (!loadCard()) buildCard(); }
+  }
+  if (isPhone) render();
+}
+
+// ============================================================
+// BOARD DEMO (no Supabase) — auto-calls items so you can preview the look.
+// Open index.html?demo for the board, or ?play&demo for a sample card.
+// ============================================================
+function startBoardDemo() {
+  live.role = "host"; live.code = "DEMO";
+  POOL = DEFAULT_POOL.slice();
+  game.started = false; game.called = []; game.current = null;
+  render();
+  setTimeout(function tick() {
+    callNextDemo();
+    render();
+    if (game.called.length < POOL.length) setTimeout(tick, 2600);
+  }, 1400);
+}
+function callNextDemo() {
+  const remaining = POOL.map((_, i) => i).filter((i) => !game.called.includes(i));
+  if (!remaining.length) return;
+  game.started = true;
+  const idx = remaining[Math.floor(Math.random() * remaining.length)];
+  game.current = idx; game.called.push(idx);
+}
+function startPhoneDemo() {
+  live.role = "player"; live.code = "DEMO"; player.room = "DEMO";
+  POOL = DEFAULT_POOL.slice();
+  game.started = true;
+  // call ~12 random items
+  const idxs = POOL.map((_, i) => i);
+  for (let i = idxs.length - 1; i > 0; i--) { const j = Math.floor(Math.random()*(i+1)); [idxs[i],idxs[j]]=[idxs[j],idxs[i]]; }
+  game.called = idxs.slice(0, 12);
+  game.current = game.called[game.called.length - 1];
+  buildCard();
+  // pre-daub the ones already called so it looks mid-game
+  player.layout.forEach((v, c) => { if (v !== "FREE" && game.called.includes(v) && Math.random() < .7) player.daubed[c] = true; });
+  render();
+}
+
+// ============================================================
+// KEYBOARD (board only)
+// ============================================================
+document.addEventListener("keydown", (e) => {
+  if (isPhone) return;
+  const t = e.target;
+  if (t && (t.tagName === "INPUT" || t.tagName === "TEXTAREA")) return;
+  if (e.key === "f" || e.key === "F") {
+    if (!document.fullscreenElement) document.documentElement.requestFullscreen?.();
+    else document.exitFullscreen?.();
+    return;
+  }
+  if (live.role !== "host") return;
+  if (e.key === " " || e.key === "ArrowRight" || e.key === "Enter") {
+    e.preventDefault();
+    if (game.called.length < POOL.length) callNext();
+  }
+});
+
+// ============================================================
+// BOOT
+// ============================================================
+const _params   = new URLSearchParams(location.search);
+const _isDemo   = _params.has("demo");
+const _roomParam = _params.get("room");
+
+if (isPhone) {
+  document.body.classList.remove("board");
+  document.body.classList.add("phone");
+  if (_isDemo) startPhoneDemo();
+  else if (_roomParam) {
+    player.name = "";
+    renderPhoneJoin(_roomParam.toUpperCase());   // arrived via QR — prefill the code
+  } else {
+    renderPhoneJoin();
+  }
+} else {
+  if (_isDemo) startBoardDemo();
+  else resumeHostIfAny();                          // caller — resume a live room if we were hosting
+}
+</script>
+</body>
+</html>
